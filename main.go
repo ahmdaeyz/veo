@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/gocolly/colly"
 
@@ -29,6 +30,14 @@ var (
 	client      *messenger.Messenger
 )
 
+func determineListenAddress() (string, error) {
+	port := os.Getenv("PORT")
+	if port == "" {
+		return "", fmt.Errorf("$PORT not set")
+	}
+	return ":" + port, nil
+}
+
 func init() {
 	conf.Use(configure.NewFlag())
 	conf.Use(configure.NewEnvironment())
@@ -45,8 +54,11 @@ func main() {
 	client.HandleMessage(messages)
 
 	fmt.Println("Serving messenger bot on localhost:8080")
-
-	http.ListenAndServe(":8080", client.Handler())
+	listeningAt, err := determineListenAddress()
+	if err != nil {
+		log.Fatal(err)
+	}
+	http.ListenAndServe(listeningAt, client.Handler())
 }
 func messages(m messenger.Message, r *messenger.Response) {
 	if !m.IsEcho {
