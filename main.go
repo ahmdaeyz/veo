@@ -91,7 +91,7 @@ func messages(m messenger.Message, r *messenger.Response) {
 		_ = res
 	}
 	if user.UserID != 0 {
-		if user.History[len(user.History)-1].RequiredURL == user.History[len(user.History)-2].RequiredURL && user.History[len(user.History)-1].Time.Nanosecond == user.History[len(user.History)-2].Time.Nanosecond {
+		if user.History[len(user.History)-1].RequiredURL == user.History[len(user.History)-2].RequiredURL && user.History[len(user.History)-1].Time.Nanosecond() == user.History[len(user.History)-2].Time.Nanosecond() {
 			err = r.Text("plz w8 the video is being sent..", messenger.ResponseType)
 			if err != nil {
 				log.Fatal("error sending sender action : ", err)
