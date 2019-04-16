@@ -61,31 +61,25 @@ func main() {
 	http.ListenAndServe(listeningAt, client.Handler())
 }
 func messages(m messenger.Message, r *messenger.Response) {
-	if !m.IsEcho {
-		fmt.Println(m.Text)
-
-		fmt.Println(m.Attachments[len(m.Attachments)-1].URL)
-		var videoLink string
-		c := colly.NewCollector(
-			colly.UserAgent("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.109 Safari/537.36"),
-		)
-		c.OnHTML("head > meta", func(e *colly.HTMLElement) {
-			if e.Attr("property") == "og:video" {
-				videoLink = e.Attr("content")
-			}
-		})
-		err := c.Visit(m.Attachments[len(m.Attachments)-1].URL)
-		if err != nil {
-			log.Fatal(err)
+	fmt.Println(m.Text)
+	var videoLink string
+	c := colly.NewCollector(
+		colly.UserAgent("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.109 Safari/537.36"),
+	)
+	c.OnHTML("head > meta", func(e *colly.HTMLElement) {
+		if e.Attr("property") == "og:video" {
+			videoLink = e.Attr("content")
 		}
-		fmt.Println(m.Attachments[len(m.Attachments)-1].URL)
-		fmt.Println(len(m.Attachments))
-		fmt.Println(videoLink)
-		err = r.Attachment(messenger.VideoAttachment, videoLink, messenger.ResponseType)
-		if err != nil {
-			log.Fatal(err)
-		}
+	})
+	err := c.Visit(m.Attachments[len(m.Attachments)-1].URL)
+	if err != nil {
+		log.Fatal(err)
 	}
+	err = r.Attachment(messenger.VideoAttachment, videoLink, messenger.ResponseType)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 }
 
 //document.getElementsByClassName("_53mw")[0].getAttribute("data-store").src
