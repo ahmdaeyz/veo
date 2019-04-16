@@ -10,7 +10,6 @@ import (
 
 	"github.com/ahmdaeyz/messenger"
 	"github.com/gocolly/colly"
-	"github.com/google/go-cmp/cmp"
 	"github.com/paked/configure"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -92,7 +91,7 @@ func messages(m messenger.Message, r *messenger.Response) {
 		_ = res
 	}
 	if user.UserID != 0 {
-		if cmp.Equal(user.History[len(user.History)-1], user.History[len(user.History)-2]) {
+		if user.History[len(user.History)-1].RequiredURL == user.History[len(user.History)-2].RequiredURL && user.History[len(user.History)-1].Time.Nanosecond == user.History[len(user.History)-2].Time.Nanosecond {
 			err = r.Text("plz w8 the video is being sent..", messenger.ResponseType)
 			if err != nil {
 				log.Fatal("error sending sender action : ", err)
