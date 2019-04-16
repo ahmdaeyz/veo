@@ -93,7 +93,7 @@ func messages(m messenger.Message, r *messenger.Response) {
 	}
 	if user.UserID != 0 {
 		if cmp.Equal(user.History[len(user.History)-1], user.History[len(user.History)-2]) {
-			err = r.SenderAction("mark_seen")
+			err = r.Text("plz w8 the video is being sent..", messenger.ResponseType)
 			if err != nil {
 				log.Fatal("error sending sender action : ", err)
 			}
