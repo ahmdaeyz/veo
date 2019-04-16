@@ -1,25 +1,30 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
-
-	"github.com/gocolly/colly"
+	"time"
 
 	"github.com/ahmdaeyz/messenger"
+	"github.com/gocolly/colly"
+	"github.com/google/go-cmp/cmp"
 	"github.com/paked/configure"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // a messenger bot to download videos from facebook :D
-var links = map[int]string{
-	1: "https://www.facebook.com/EgyptianEgg/videos/391878808308465/?__xts__%5B0%5D=68.ARCvwSJV8rFUYHqUD40iCPHxgN1YCN3H7_kWHZ4oaM8V0HZSY2TkzUiRnHutA6L8LTTM87d2NkGJh9YNvdFDdgi2QbI1mK-kAJHOliGb5jzmq4gAlcl_EmIXzf3BJXHRRcANevTufsWRT_hjmGzLLR6o0mHC942FILtbufU079fWnN_qzZjLDKXv9wOMtElqiAKGQx3aG-nFswgwLbVxitCgu5J8j43tgFvXMWseRc3s37pwPQl1d2IEORhQheHBCY1mIAksXL4yyeVuDutNttKfrEqx_yBZv08I7XpSFyfIrmWxKQuMPh9OMMXQ0131d8CwXipNtlNQi4MVI3NecYCfUl-El26qAOYzCzMgXRlj0xXh23Azwx-_umZV8abg2g&__tn__=-R",
+type record struct {
+	Time        time.Time
+	RequiredURL string
 }
-
-type video struct {
-	VideoID string `json:"videoID"`
-	Src     string `json:"src"`
+type user struct {
+	UserID  int64
+	History []record
 }
 
 var (
@@ -63,27 +68,57 @@ func main() {
 func messages(m messenger.Message, r *messenger.Response) {
 	log.Println(m.Attachments[0].URL)
 	log.Println(m.Time)
-
+	user := user{}
 	var videoLink string
 	c := colly.NewCollector(
 		colly.UserAgent("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.109 Safari/537.36"),
 	)
-	c.OnHTML("head > meta", func(e *colly.HTMLElement) {
-		if e.Attr("property") == "og:video" {
-			videoLink = e.Attr("content")
+	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+	db, err := mongo.Connect(ctx, options.Client().ApplyURI("mongodb+srv://ahmdaeyz:ahmdaeyz1234@veo-gtjpu.mongodb.net/test?retryWrites=true"))
+	if err != nil {
+		log.Fatal(err)
+	}
+	collection := db.Database("veo").Collection("users")
+	ctx, _ = context.WithTimeout(context.Background(), 5*time.Second)
+	update := collection.FindOneAndUpdate(ctx, bson.M{"user_id": m.Sender.ID}, bson.M{"$push": bson.M{"history": bson.M{"time": m.Time, "required_url": m.Attachments[len(m.Attachments)-1].URL}}})
+	if update.Err() != nil {
+		log.Fatal("error updating database : ", update.Err())
+	}
+	if update.Decode(&user) != nil {
+		res, err := collection.InsertOne(ctx, bson.M{"user_id": m.Sender.ID, "history": bson.A{bson.M{"time": m.Time, "required_url": m.Attachments[len(m.Attachments)-1].URL}}})
+		if err != nil {
+			log.Fatal("error inserting document : ", err)
 		}
-	})
-	err := c.Visit(m.Attachments[len(m.Attachments)-1].URL)
-	if err != nil {
-		log.Fatal(err)
+		_ = res
 	}
-	err = r.Attachment(messenger.VideoAttachment, videoLink, messenger.ResponseType)
-	if err != nil {
-		log.Fatal(err)
-	}
-	err = r.SenderAction("mark_seen")
-	if err != nil {
-		log.Fatal(err)
+	if user.UserID != 0 {
+		if cmp.Equal(user.History[len(user.History)-1], user.History[len(user.History)-2]) {
+			err = r.SenderAction("mark_seen")
+			if err != nil {
+				log.Fatal("error sending sender action : ", err)
+			}
+		}
+		if len(user.History) >= 3 {
+			dropFirstEntry := collection.FindOneAndUpdate(ctx, bson.M{"user_id": m.Sender.ID}, bson.M{"$pop": bson.M{"history": -1}})
+			if dropFirstEntry.Err() != nil {
+				log.Println("error droping first entry of user history", dropFirstEntry.Err())
+			}
+		}
+	} else {
+		c.OnHTML("head > meta", func(e *colly.HTMLElement) {
+			if e.Attr("property") == "og:video" {
+				videoLink = e.Attr("content")
+			}
+		})
+		err = c.Visit(m.Attachments[len(m.Attachments)-1].URL)
+		if err != nil {
+			log.Fatal("error scrapping video link : ", err)
+		}
+
+		err = r.Attachment(messenger.VideoAttachment, videoLink, messenger.ResponseType)
+		if err != nil {
+			log.Fatal("error sending attachment : ", err)
+		}
 	}
 }
 

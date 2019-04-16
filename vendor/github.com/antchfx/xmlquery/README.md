@@ -10,6 +10,15 @@ Overview
 
 xmlquery is an XPath query package for XML document, lets you extract data or evaluate from XML documents by an XPath expression.
 
+Change Logs
+===
+
+**2018-12-23**
+* added XML output will including comment node. [#9](https://github.com/antchfx/xmlquery/issues/9)
+
+**2018-12-03**
+ * added support attribute name with namespace prefix and XML output. [#6](https://github.com/antchfx/xmlquery/issues/6)
+
 Installation
 ====
 
@@ -50,6 +59,12 @@ list := xmlquery.Find(doc, "//author")
 
 ```go
 book := xmlquery.FindOne(doc, "//book[2]")
+```
+
+#### Find all book elements and only get `id` attribute self. (New Feature)
+
+```go
+list := xmlquery.Find(doc,"//book/@id")
 ```
 
 #### Find all books with id is bk104.
@@ -117,6 +132,10 @@ Quick Tutorial
 ===
 
 ```go
+import (
+	"github.com/antchfx/xmlquery"
+)
+
 func main(){
 	s := `<?xml version="1.0" encoding="UTF-8" ?>
 <rss version="2.0">
@@ -137,15 +156,19 @@ func main(){
 </channel>
 </rss>`
 
-	doc, err := Parse(strings.NewReader(s))
+	doc, err := xmlquery.Parse(strings.NewReader(s))
 	if err != nil {
 		panic(err)
 	}
-	channel := FindOne(doc, "//channel")
-	fmt.Printf("title: %s\n", channel.SelectElement("title").InnerText())
-	fmt.Printf("link: %s\n", channel.SelectElement("link").InnerText())
-	for i, n := range Find(doc, "//item") {
-		fmt.Printf("#%d %s\n", i, n.SelectElement("title"))
+	channel := xmlquery.FindOne(doc, "//channel")
+	if n := channel.SelectElement("title"); n != nil {
+		fmt.Printf("title: %s\n", n.InnerText())
+	}
+	if n := channel.SelectElement("link"); n != nil {
+		fmt.Printf("link: %s\n", n.InnerText())
+	}
+	for i, n := range xmlquery.Find(doc, "//item/title") {
+		fmt.Printf("#%d %s\n", i, n.InnerText())
 	}
 }
 ```
@@ -158,6 +181,6 @@ List of supported XPath query packages
 |[xmlquery](https://github.com/antchfx/xmlquery) | XPath query package for the XML document|
 |[jsonquery](https://github.com/antchfx/jsonquery) | XPath query package for the JSON document|
 
-Questions
+ Questions
 ===
 Please let me know if you have any questions
