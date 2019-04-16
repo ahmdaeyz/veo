@@ -63,6 +63,7 @@ func main() {
 func messages(m messenger.Message, r *messenger.Response) {
 	log.Println(m.Attachments[0].URL)
 	log.Println(m.Time)
+	r.SenderAction("mark_seen")
 	var videoLink string
 	c := colly.NewCollector(
 		colly.UserAgent("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.109 Safari/537.36"),
