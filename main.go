@@ -90,14 +90,17 @@ func messages(m messenger.Message, r *messenger.Response) {
 		}
 		_ = res
 	}
-	if user.UserID != 0 {
-		if user.History[len(user.History)-1].RequiredURL == user.History[len(user.History)-2].RequiredURL && user.History[len(user.History)-1].Time.Nanosecond() == user.History[len(user.History)-2].Time.Nanosecond() {
-			err = r.Text("plz w8 the video is being sent..", messenger.ResponseType)
-			if err != nil {
-				log.Fatal("error sending sender action : ", err)
-			}
-			client.Response(user.UserID)
+	dbUser := collection.FindOne(ctx, bson.M{"user_id": m.Sender.ID})
+	err = dbUser.Decode(&user)
+	if err != nil {
+		log.Println("error decoding : ", err)
+	}
+	if user.History[len(user.History)-1].RequiredURL == user.History[len(user.History)-2].RequiredURL && user.History[len(user.History)-1].Time.Nanosecond() == user.History[len(user.History)-2].Time.Nanosecond() {
+		err = r.Text("plz w8 the video is being sent..", messenger.ResponseType)
+		if err != nil {
+			log.Fatal("error sending sender action : ", err)
 		}
+		client.Response(user.UserID)
 		if len(user.History) >= 3 {
 			dropFirstEntry := collection.FindOneAndUpdate(ctx, bson.M{"user_id": m.Sender.ID}, bson.M{"$pop": bson.M{"history": -1}})
 			if dropFirstEntry.Err() != nil {
