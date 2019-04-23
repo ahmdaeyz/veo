@@ -96,6 +96,7 @@ func messages(m messenger.Message, r *messenger.Response) {
 			if err != nil {
 				log.Fatal("error sending sender action : ", err)
 			}
+			client.Response(user.UserID)
 		}
 		if len(user.History) >= 3 {
 			dropFirstEntry := collection.FindOneAndUpdate(ctx, bson.M{"user_id": m.Sender.ID}, bson.M{"$pop": bson.M{"history": -1}})
@@ -104,12 +105,15 @@ func messages(m messenger.Message, r *messenger.Response) {
 			}
 		}
 	} else {
+		meh := time.Now()
 		c.OnHTML("head > meta", func(e *colly.HTMLElement) {
 			if e.Attr("property") == "og:video" {
 				videoLink = e.Attr("content")
 			}
 		})
 		err = c.Visit(m.Attachments[len(m.Attachments)-1].URL)
+		seh := time.Since(meh)
+		log.Println(seh)
 		if err != nil {
 			log.Fatal("error scrapping video link : ", err)
 		}
@@ -120,19 +124,3 @@ func messages(m messenger.Message, r *messenger.Response) {
 		}
 	}
 }
-
-//document.getElementsByClassName("_53mw")[0].getAttribute("data-store").src
-/*
-type Attachment struct {
-
-
-	URL string `json:"url,omitempty"`
-	// Type is what type the message is. (image, video, audio or location)
-	Type string `json:"type"`
-	// Payload is the information for the file which was sent in the attachment.
-	Payload Payload `json:"payload"`
-}
-
-
-
-*/
