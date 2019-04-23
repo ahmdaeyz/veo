@@ -10,6 +10,7 @@ import (
 
 	"github.com/ahmdaeyz/messenger"
 	"github.com/gocolly/colly"
+	"github.com/google/go-cmp/cmp"
 	"github.com/paked/configure"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -95,12 +96,12 @@ func messages(m messenger.Message, r *messenger.Response) {
 	if err != nil {
 		log.Println("error decoding : ", err)
 	}
-	if user.History[len(user.History)-1].RequiredURL == user.History[len(user.History)-2].RequiredURL && user.History[len(user.History)-1].Time.Nanosecond() == user.History[len(user.History)-2].Time.Nanosecond() {
-		err = r.Text("plz w8 the video is being sent..", messenger.ResponseType)
+	if cmp.Equal(user.History[len(user.History)-1], user.History[len(user.History)-2]) {
+		log.Println("loop detected")
+		err = r.SenderAction("mark_seen")
 		if err != nil {
 			log.Fatal("error sending sender action : ", err)
 		}
-		client.Response(user.UserID)
 		if len(user.History) >= 3 {
 			dropFirstEntry := collection.FindOneAndUpdate(ctx, bson.M{"user_id": m.Sender.ID}, bson.M{"$pop": bson.M{"history": -1}})
 			if dropFirstEntry.Err() != nil {
