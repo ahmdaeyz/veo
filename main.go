@@ -67,6 +67,7 @@ func main() {
 }
 func messages(m messenger.Message, r *messenger.Response) {
 	if len(m.Attachments) != 0 {
+		log.Println(m.Attachments[len(m.Attachments)-1])
 		user := user{}
 		var videoLink string
 		c := colly.NewCollector(
