@@ -108,6 +108,21 @@ func messages(m messenger.Message, r *messenger.Response) {
 						log.Println("error droping first entry of user history", dropFirstEntry.Err())
 					}
 				}
+			} else {
+				c.OnHTML("head > meta", func(e *colly.HTMLElement) {
+					if e.Attr("property") == "og:video" {
+						videoLink = e.Attr("content")
+					}
+				})
+				err = c.Visit(m.Attachments[len(m.Attachments)-1].URL)
+				if err != nil {
+					log.Fatal("error scrapping video link : ", err)
+				}
+				log.Println("Vid Link : ", videoLink)
+				err = r.Attachment(messenger.VideoAttachment, videoLink, messenger.ResponseType)
+				if err != nil {
+					log.Fatal("error sending attachment : ", err)
+				}
 			}
 		} else {
 			c.OnHTML("head > meta", func(e *colly.HTMLElement) {
