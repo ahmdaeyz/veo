@@ -80,12 +80,12 @@ func messages(m messenger.Message, r *messenger.Response) {
 	ctx, _ = context.WithTimeout(context.Background(), 5*time.Second)
 	update := collection.FindOneAndUpdate(ctx, bson.M{"user_id": m.Sender.ID}, bson.M{"$push": bson.M{"history": bson.M{"time": m.Time, "required_url": m.Attachments[len(m.Attachments)-1].URL}}})
 	if update.Err() != nil {
-		log.Fatal("error updating database : ", update.Err())
+		log.Println("error updating database : ", update.Err())
 	}
 	if update.Decode(&user) == mongo.ErrNilDocument {
 		res, err := collection.InsertOne(ctx, bson.M{"user_id": m.Sender.ID, "history": bson.A{bson.M{"time": m.Time, "required_url": m.Attachments[len(m.Attachments)-1].URL}}})
 		if err != nil {
-			log.Fatal("error inserting document : ", err)
+			log.Println("error inserting document : ", err)
 		}
 		_ = res
 	}
