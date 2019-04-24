@@ -80,18 +80,16 @@ func messages(m messenger.Message, r *messenger.Response) {
 		collection := db.Database("veo").Collection("users")
 		ctx, _ = context.WithTimeout(context.Background(), 5*time.Second)
 		update := collection.FindOneAndUpdate(ctx, bson.M{"user_id": m.Sender.ID}, bson.M{"$push": bson.M{"history": bson.M{"time": m.Time, "required_url": m.Attachments[len(m.Attachments)-1].URL}}})
-		if update.Decode(user) != nil {
-			ctx, _ = context.WithTimeout(context.Background(), 10*time.Second)
+		if update.Err() != nil {
+			log.Fatal("error updating database", update.Err())
+		}
+		if update.Decode(&user) == mongo.ErrNilDocument {
 			res, err := collection.InsertOne(ctx, bson.M{"user_id": m.Sender.ID, "history": bson.A{bson.M{"time": m.Time, "required_url": m.Attachments[len(m.Attachments)-1].URL}}})
 			if err != nil {
 				log.Println("error inserting document : ", err)
 			}
-			log.Println(res.InsertedID)
+			_ = res
 		}
-		// if update.Decode(&user) == mongo.ErrNilDocument {
-
-		// 	_ = res
-		// }
 		dbUser := collection.FindOne(ctx, bson.M{"user_id": m.Sender.ID})
 		err = dbUser.Decode(&user)
 		if err != nil {
