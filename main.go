@@ -66,8 +66,6 @@ func main() {
 	http.ListenAndServe(listeningAt, client.Handler())
 }
 func messages(m messenger.Message, r *messenger.Response) {
-	log.Println(m.Attachments[0].URL)
-	log.Println(m.Time)
 	user := user{}
 	var videoLink string
 	c := colly.NewCollector(
@@ -97,7 +95,6 @@ func messages(m messenger.Message, r *messenger.Response) {
 		log.Println("error decoding : ", err)
 	}
 	if cmp.Equal(user.History[len(user.History)-1], user.History[len(user.History)-2]) {
-		log.Println("loop detected")
 		err = r.SenderAction("mark_seen")
 		if err != nil {
 			log.Fatal("error sending sender action : ", err)
@@ -109,15 +106,12 @@ func messages(m messenger.Message, r *messenger.Response) {
 			}
 		}
 	} else {
-		meh := time.Now()
 		c.OnHTML("head > meta", func(e *colly.HTMLElement) {
 			if e.Attr("property") == "og:video" {
 				videoLink = e.Attr("content")
 			}
 		})
 		err = c.Visit(m.Attachments[len(m.Attachments)-1].URL)
-		seh := time.Since(meh)
-		log.Println(seh)
 		if err != nil {
 			log.Fatal("error scrapping video link : ", err)
 		}
