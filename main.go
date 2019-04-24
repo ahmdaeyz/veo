@@ -82,7 +82,7 @@ func messages(m messenger.Message, r *messenger.Response) {
 	if update.Err() != nil {
 		log.Fatal("error updating database : ", update.Err())
 	}
-	if update.Decode(&user) != nil {
+	if update.Decode(&user) == mongo.ErrNilDocument {
 		res, err := collection.InsertOne(ctx, bson.M{"user_id": m.Sender.ID, "history": bson.A{bson.M{"time": m.Time, "required_url": m.Attachments[len(m.Attachments)-1].URL}}})
 		if err != nil {
 			log.Fatal("error inserting document : ", err)
