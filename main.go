@@ -80,8 +80,8 @@ func messages(m messenger.Message, r *messenger.Response) {
 		collection := db.Database("veo").Collection("users")
 		ctx, _ = context.WithTimeout(context.Background(), 5*time.Second)
 		update := collection.FindOneAndUpdate(ctx, bson.M{"user_id": m.Sender.ID}, bson.M{"$push": bson.M{"history": bson.M{"time": m.Time, "required_url": m.Attachments[len(m.Attachments)-1].URL}}})
-		if update.Err() != nil {
-			log.Println("error updating database : ", update.Err())
+		if update.Decode(user) != nil {
+			ctx, _ = context.WithTimeout(context.Background(), 10*time.Second)
 			res, err := collection.InsertOne(ctx, bson.M{"user_id": m.Sender.ID, "history": bson.A{bson.M{"time": m.Time, "required_url": m.Attachments[len(m.Attachments)-1].URL}}})
 			if err != nil {
 				log.Println("error inserting document : ", err)
@@ -97,15 +97,17 @@ func messages(m messenger.Message, r *messenger.Response) {
 		if err != nil {
 			log.Println("error decoding : ", err)
 		}
-		if cmp.Equal(user.History[len(user.History)-1], user.History[len(user.History)-2]) {
-			err = r.SenderAction("mark_seen")
-			if err != nil {
-				log.Fatal("error sending sender action : ", err)
-			}
-			if len(user.History) >= 3 {
-				dropFirstEntry := collection.FindOneAndUpdate(ctx, bson.M{"user_id": m.Sender.ID}, bson.M{"$pop": bson.M{"history": -1}})
-				if dropFirstEntry.Err() != nil {
-					log.Println("error droping first entry of user history", dropFirstEntry.Err())
+		if len(user.History) >= 2 {
+			if cmp.Equal(user.History[len(user.History)-1], user.History[len(user.History)-2]) {
+				err = r.SenderAction("mark_seen")
+				if err != nil {
+					log.Fatal("error sending sender action : ", err)
+				}
+				if len(user.History) >= 3 {
+					dropFirstEntry := collection.FindOneAndUpdate(ctx, bson.M{"user_id": m.Sender.ID}, bson.M{"$pop": bson.M{"history": -1}})
+					if dropFirstEntry.Err() != nil {
+						log.Println("error droping first entry of user history", dropFirstEntry.Err())
+					}
 				}
 			}
 		} else {
