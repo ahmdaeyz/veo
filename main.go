@@ -29,9 +29,10 @@ type user struct {
 
 var (
 	conf        = configure.New()
-	verifyToken = conf.String("verify-token", "mad-skrilla", "The token used to verify facebook")
+	verifyToken = conf.String("verify-token", "verify token", "The token used to verify facebook")
 	verify      = conf.Bool("should-verify", false, "Whether or not the app should verify itself")
-	pageToken   = conf.String("page-token", "not skrilla", "The token that is used to verify the page on facebook")
+	pageToken   = conf.String("page-token", "page token", "The token that is used to verify the page on facebook")
+	mongoURI    = conf.String("mongo-uri", "mongodb uri", "MongoDB URI")
 	client      *messenger.Messenger
 )
 
@@ -67,14 +68,13 @@ func main() {
 }
 func messages(m messenger.Message, r *messenger.Response) {
 	if len(m.Attachments) != 0 {
-		log.Println(m.Attachments[len(m.Attachments)-1])
 		user := user{}
 		var videoLink string
 		c := colly.NewCollector(
 			colly.UserAgent("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.109 Safari/537.36"),
 		)
 		ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
-		db, err := mongo.Connect(ctx, options.Client().ApplyURI("mongodb+srv://ahmdaeyz:ahmdaeyz1234@veo-gtjpu.mongodb.net/test?retryWrites=true"))
+		db, err := mongo.Connect(ctx, options.Client().ApplyURI(*mongoURI))
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -134,7 +134,6 @@ func messages(m messenger.Message, r *messenger.Response) {
 			if err != nil {
 				log.Fatal("error scrapping video link : ", err)
 			}
-			log.Println("Vid Link : ", videoLink)
 			err = r.Attachment(messenger.VideoAttachment, videoLink, messenger.ResponseType)
 			if err != nil {
 				log.Fatal("error sending attachment : ", err)
