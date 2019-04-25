@@ -141,7 +141,7 @@ func messages(m messenger.Message, r *messenger.Response) {
 			log.Println("error updating database", update.Err())
 		}
 		if update.Decode(&user) != nil {
-			res, err := collection.InsertOne(ctx, bson.M{"user_id": m.Sender.ID, "history": bson.A{bson.M{"time": m.Time, "required_url": m.Attachments[len(m.Attachments)-1].URL}}})
+			res, err := collection.InsertOne(ctx, bson.M{"user_id": m.Sender.ID, "history": bson.A{bson.M{"time": m.Time, "required_url": m.Text}}})
 			if err != nil {
 				log.Println("error inserting document", err)
 			}
