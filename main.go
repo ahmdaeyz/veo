@@ -136,7 +136,7 @@ func messages(m messenger.Message, r *messenger.Response) {
 		}
 	} else if strings.Contains(m.Text, "watch") || strings.Contains(m.Text, "videos") {
 		user := &user{}
-		update := collection.FindOneAndUpdate(ctx, bson.M{"user_id": m.Sender.ID}, bson.M{"$push": bson.M{"history": bson.M{"time": m.Time, "required_url": m.Attachments[len(m.Attachments)-1].URL}}})
+		update := collection.FindOneAndUpdate(ctx, bson.M{"user_id": m.Sender.ID}, bson.M{"$push": bson.M{"history": bson.M{"time": m.Time, "required_url": m.Text}}})
 		if update.Err() != nil {
 			log.Println("error updating database", update.Err())
 		}
