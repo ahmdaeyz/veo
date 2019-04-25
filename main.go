@@ -113,7 +113,7 @@ func messages(m messenger.Message, r *messenger.Response) {
 					}
 				}
 			} else {
-				videoLink, err := scrapHead(&m)
+				videoLink, err := scrapHead(m)
 				log.Println(videoLink)
 				if err != nil {
 					log.Println(err)
@@ -124,7 +124,7 @@ func messages(m messenger.Message, r *messenger.Response) {
 				}
 			}
 		} else {
-			videoLink, err := scrapHead(&m)
+			videoLink, err := scrapHead(m)
 			log.Println(videoLink)
 			if err != nil {
 				log.Println(err)
@@ -165,7 +165,7 @@ func messages(m messenger.Message, r *messenger.Response) {
 					}
 				}
 			} else {
-				videoLink, err := scrapMobileVidLink(&m)
+				videoLink, err := scrapMobileVidLink(m)
 				log.Println(videoLink)
 				if err != nil {
 					log.Println(err)
@@ -176,7 +176,7 @@ func messages(m messenger.Message, r *messenger.Response) {
 				}
 			}
 		} else {
-			videoLink, err := scrapMobileVidLink(&m)
+			videoLink, err := scrapMobileVidLink(m)
 			log.Println(videoLink)
 			if err != nil {
 				log.Println(err)
@@ -190,7 +190,7 @@ func messages(m messenger.Message, r *messenger.Response) {
 		r.Text(`Plz share the requested video with "send as message","send in messenger" or provide the video url`, messenger.ResponseType)
 	}
 }
-func updateUserRecord(m *messenger.Message) (*user, error) {
+func updateUserRecord(m messenger.Message) (*user, error) {
 	user := &user{}
 	update := collection.FindOneAndUpdate(ctx, bson.M{"user_id": m.Sender.ID}, bson.M{"$push": bson.M{"history": bson.M{"time": m.Time, "required_url": m.Attachments[len(m.Attachments)-1].URL}}})
 	if update.Err() != nil {
@@ -210,7 +210,7 @@ func updateUserRecord(m *messenger.Message) (*user, error) {
 	}
 	return user, nil
 }
-func scrapMobileVidLink(m *messenger.Message) (string, error) {
+func scrapMobileVidLink(m messenger.Message) (string, error) {
 	var vidLink string
 	c.OnHTML("._53mw", func(e *colly.HTMLElement) {
 		value, _ := fastjson.Parse(e.Attr("data-store"))
@@ -219,7 +219,7 @@ func scrapMobileVidLink(m *messenger.Message) (string, error) {
 	c.Visit(strings.Replace(strings.TrimSpace(m.Text), "www", "m", -1))
 	return vidLink, nil
 }
-func scrapHead(m *messenger.Message) (string, error) {
+func scrapHead(m messenger.Message) (string, error) {
 	var vidLink string
 	c.OnHTML("head > meta", func(e *colly.HTMLElement) {
 		if e.Attr("property") == "og:video" {
