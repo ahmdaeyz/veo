@@ -166,7 +166,6 @@ func messages(m messenger.Message, r *messenger.Response) {
 }
 func updateUserRecord(m messenger.Message) (*user, error) {
 	user := &user{}
-	ctx, _ = context.WithTimeout(context.Background(), 5*time.Second)
 	update := collection.FindOneAndUpdate(ctx, bson.M{"user_id": m.Sender.ID}, bson.M{"$push": bson.M{"history": bson.M{"time": m.Time, "required_url": m.Attachments[len(m.Attachments)-1].URL}}})
 	if update.Err() != nil {
 		return nil, errors.Wrap(update.Err(), "error updating database")
