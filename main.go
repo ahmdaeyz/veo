@@ -201,7 +201,7 @@ func scrapHead(m messenger)(string,error){
 	}
 	return vidLink,nil
 }	
-func sendVidAttachment(r *messenger.Response,videoLink string)(error){
+func sendVidAttachment(r *messenger.Response,videoLink string) error {
 	if videoLink!=""{
 		err = r.Attachment(messenger.VideoAttachment, videoLink, messenger.ResponseType)
 		if err != nil {
