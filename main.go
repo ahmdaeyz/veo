@@ -191,26 +191,27 @@ func messages(m messenger.Message, r *messenger.Response) {
 		r.Text(`Plz share the requested video with "send as message","send in messenger" or provide the video url`, messenger.ResponseType)
 	}
 }
-func updateUserRecord(m messenger.Message) (*user, error) {
-	user := &user{}
-	update := collection.FindOneAndUpdate(ctx, bson.M{"user_id": m.Sender.ID}, bson.M{"$push": bson.M{"history": bson.M{"time": m.Time, "required_url": m.Attachments[len(m.Attachments)-1].URL}}})
-	if update.Err() != nil {
-		return nil, errors.Wrap(update.Err(), "error updating database")
-	}
-	if update.Decode(&user) != nil {
-		res, err := collection.InsertOne(ctx, bson.M{"user_id": m.Sender.ID, "history": bson.A{bson.M{"time": m.Time, "required_url": m.Attachments[len(m.Attachments)-1].URL}}})
-		if err != nil {
-			return nil, errors.Wrap(err, "error inserting document")
-		}
-		_ = res
-	}
-	dbUser := collection.FindOne(ctx, bson.M{"user_id": m.Sender.ID})
-	err := dbUser.Decode(&user)
-	if err != nil {
-		return nil, errors.Wrap(err, "error decoding : ")
-	}
-	return user, nil
-}
+
+// func updateUserRecord(m messenger.Message) (*user, error) {
+// 	user := &user{}
+// 	update := collection.FindOneAndUpdate(ctx, bson.M{"user_id": m.Sender.ID}, bson.M{"$push": bson.M{"history": bson.M{"time": m.Time, "required_url": m.Attachments[len(m.Attachments)-1].URL}}})
+// 	if update.Err() != nil {
+// 		return nil, errors.Wrap(update.Err(), "error updating database")
+// 	}
+// 	if update.Decode(&user) != nil {
+// 		res, err := collection.InsertOne(ctx, bson.M{"user_id": m.Sender.ID, "history": bson.A{bson.M{"time": m.Time, "required_url": m.Attachments[len(m.Attachments)-1].URL}}})
+// 		if err != nil {
+// 			return nil, errors.Wrap(err, "error inserting document")
+// 		}
+// 		_ = res
+// 	}
+// 	dbUser := collection.FindOne(ctx, bson.M{"user_id": m.Sender.ID})
+// 	err := dbUser.Decode(&user)
+// 	if err != nil {
+// 		return nil, errors.Wrap(err, "error decoding : ")
+// 	}
+// 	return user, nil
+// }
 func scrapMobileVidLink(m messenger.Message) (string, error) {
 	var vidLink string
 	c.OnHTML("._53mw", func(e *colly.HTMLElement) {
