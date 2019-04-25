@@ -83,9 +83,22 @@ func main() {
 }
 func messages(m messenger.Message, r *messenger.Response) {
 	if len(m.Attachments) != 0 {
-		user, err := updateUserRecord(&m)
+		user := &user{}
+		update := collection.FindOneAndUpdate(ctx, bson.M{"user_id": m.Sender.ID}, bson.M{"$push": bson.M{"history": bson.M{"time": m.Time, "required_url": m.Attachments[len(m.Attachments)-1].URL}}})
+		if update.Err() != nil {
+			log.Println("error updating database", update.Err())
+		}
+		if update.Decode(&user) != nil {
+			res, err := collection.InsertOne(ctx, bson.M{"user_id": m.Sender.ID, "history": bson.A{bson.M{"time": m.Time, "required_url": m.Attachments[len(m.Attachments)-1].URL}}})
+			if err != nil {
+				log.Println("error inserting document", err)
+			}
+			_ = res
+		}
+		dbUser := collection.FindOne(ctx, bson.M{"user_id": m.Sender.ID})
+		err := dbUser.Decode(&user)
 		if err != nil {
-			log.Println(err)
+			log.Println("error decoding", err)
 		}
 		if len(user.History) >= 2 {
 			if cmp.Equal(user.History[len(user.History)-1], user.History[len(user.History)-2]) {
@@ -122,9 +135,22 @@ func messages(m messenger.Message, r *messenger.Response) {
 			}
 		}
 	} else if strings.Contains(m.Text, "watch") || strings.Contains(m.Text, "videos") {
-		user, err := updateUserRecord(&m)
+		user := &user{}
+		update := collection.FindOneAndUpdate(ctx, bson.M{"user_id": m.Sender.ID}, bson.M{"$push": bson.M{"history": bson.M{"time": m.Time, "required_url": m.Attachments[len(m.Attachments)-1].URL}}})
+		if update.Err() != nil {
+			log.Println("error updating database", update.Err())
+		}
+		if update.Decode(&user) != nil {
+			res, err := collection.InsertOne(ctx, bson.M{"user_id": m.Sender.ID, "history": bson.A{bson.M{"time": m.Time, "required_url": m.Attachments[len(m.Attachments)-1].URL}}})
+			if err != nil {
+				log.Println("error inserting document", err)
+			}
+			_ = res
+		}
+		dbUser := collection.FindOne(ctx, bson.M{"user_id": m.Sender.ID})
+		err := dbUser.Decode(&user)
 		if err != nil {
-			log.Println(err)
+			log.Println("error decoding", err)
 		}
 		if len(user.History) >= 2 {
 			if cmp.Equal(user.History[len(user.History)-1], user.History[len(user.History)-2]) {
