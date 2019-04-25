@@ -52,7 +52,6 @@ func init() {
 	conf.Use(configure.NewFlag())
 	conf.Use(configure.NewEnvironment())
 	conf.Use(configure.NewJSONFromFile("./config.json"))
-	var err error
 	c = colly.NewCollector(
 		colly.UserAgent("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.109 Safari/537.36"),
 	)
@@ -83,7 +82,6 @@ func messages(m messenger.Message, r *messenger.Response) {
 			log.Fatal(err)
 		}
 		collection := db.Database("veo").Collection("users")
-		ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
 		update := collection.FindOneAndUpdate(ctx, bson.M{"user_id": m.Sender.ID}, bson.M{"$push": bson.M{"history": bson.M{"time": m.Time, "required_url": m.Attachments[len(m.Attachments)-1].URL}}})
 		if update.Err() != nil {
 			log.Println("error updating database", update.Err())
