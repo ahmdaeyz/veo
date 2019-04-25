@@ -101,6 +101,7 @@ func messages(m messenger.Message, r *messenger.Response) {
 				}
 			} else {
 				videoLink, err := scrapHead(m)
+				log.Println(videoLink)
 				if err != nil {
 					log.Println(err)
 				}
@@ -111,6 +112,7 @@ func messages(m messenger.Message, r *messenger.Response) {
 			}
 		} else {
 			videoLink, err := scrapHead(m)
+			log.Println(videoLink)
 			if err != nil {
 				log.Println(err)
 			}
@@ -138,6 +140,7 @@ func messages(m messenger.Message, r *messenger.Response) {
 				}
 			} else {
 				videoLink, err := scrapMobileVidLink(m)
+				log.Println(videoLink)
 				if err != nil {
 					log.Println(err)
 				}
@@ -148,6 +151,7 @@ func messages(m messenger.Message, r *messenger.Response) {
 			}
 		} else {
 			videoLink, err := scrapMobileVidLink(m)
+			log.Println(videoLink)
 			if err != nil {
 				log.Println(err)
 			}
