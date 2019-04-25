@@ -8,7 +8,7 @@ import (
 	"os"
 	"strings"
 	"time"
-
+	"github.com/pkg/errors"
 	"github.com/ahmdaeyz/messenger"
 	"github.com/gocolly/colly"
 	"github.com/google/go-cmp/cmp"
@@ -78,24 +78,9 @@ func main() {
 }
 func messages(m messenger.Message, r *messenger.Response) {
 	if len(m.Attachments) != 0 {
-		user := user{}
-		var videoLink string
-		ctx, _ = context.WithTimeout(context.Background(), 5*time.Second)
-		update := collection.FindOneAndUpdate(ctx, bson.M{"user_id": m.Sender.ID}, bson.M{"$push": bson.M{"history": bson.M{"time": m.Time, "required_url": m.Attachments[len(m.Attachments)-1].URL}}})
-		if update.Err() != nil {
-			log.Fatal("error updating database", update.Err())
-		}
-		if update.Decode(&user) != nil {
-			res, err := collection.InsertOne(ctx, bson.M{"user_id": m.Sender.ID, "history": bson.A{bson.M{"time": m.Time, "required_url": m.Attachments[len(m.Attachments)-1].URL}}})
-			if err != nil {
-				log.Println("error inserting document : ", err)
-			}
-			_ = res
-		}
-		dbUser := collection.FindOne(ctx, bson.M{"user_id": m.Sender.ID})
-		err = dbUser.Decode(&user)
-		if err != nil {
-			log.Println("error decoding : ", err)
+		user,err:=updateUserRecord(m)
+		if err!=nil{
+			log.Println(err)
 		}
 		if len(user.History) >= 2 {
 			if cmp.Equal(user.History[len(user.History)-1], user.History[len(user.History)-2]) {
@@ -110,37 +95,120 @@ func messages(m messenger.Message, r *messenger.Response) {
 					}
 				}
 			} else {
-				c.OnHTML("head > meta", func(e *colly.HTMLElement) {
-					if e.Attr("property") == "og:video" {
-						videoLink = e.Attr("content")
-					}
-				})
-				err = c.Visit(m.Attachments[len(m.Attachments)-1].URL)
-				if err != nil {
-					log.Fatal("error scrapping video link : ", err)
-				}
-				log.Println("Vid Link : ", videoLink)
-				err = r.Attachment(messenger.VideoAttachment, videoLink, messenger.ResponseType)
-				if err != nil {
-					log.Fatal("error sending attachment : ", err)
-				}
+				videoLink,err:= scrapHead(m)
+			if err!=nil{
+				log.Println(err)
+			}	
+			err = sendVidAttachment(r,videoLink)
+			if err!=nil{
+				log.Println(err)
+			}
 			}
 		} else {
-			c.OnHTML("head > meta", func(e *colly.HTMLElement) {
-				if e.Attr("property") == "og:video" {
-					videoLink = e.Attr("content")
-				}
-			})
-			err = c.Visit(m.Attachments[len(m.Attachments)-1].URL)
-			if err != nil {
-				log.Fatal("error scrapping video link : ", err)
-			}
-			err = r.Attachment(messenger.VideoAttachment, videoLink, messenger.ResponseType)
-			if err != nil {
-				log.Fatal("error sending attachment : ", err)
+			videoLink,err:= scrapHead(m)
+			if err!=nil{
+				log.Println(err)
+			}	
+			err = sendVidAttachment(r,videoLink)
+			if err!=nil{
+				log.Println(err)
 			}
 		}
 	} else if strings.Contains(m.Text, "watch") || strings.Contains(m.Text, "videos") {
-		r.Text(`Plz share the requested video with "send as message" or "send in messenger"`, messenger.ResponseType)
+		user,err:=updateUserRecord(m)
+		if err!=nil{
+			log.Println(err)
+		}
+		if len(user.History) >= 2 {
+			if cmp.Equal(user.History[len(user.History)-1], user.History[len(user.History)-2]) {
+				err = r.SenderAction("mark_seen")
+				if err != nil {
+					log.Fatal("error sending sender action : ", err)
+				}
+				if len(user.History) >= 3 {
+					dropFirstEntry := collection.FindOneAndUpdate(ctx, bson.M{"user_id": m.Sender.ID}, bson.M{"$pop": bson.M{"history": -1}})
+					if dropFirstEntry.Err() != nil {
+						log.Println("error droping first entry of user history", dropFirstEntry.Err())
+					}
+				}
+			}else{
+				videoLink,err:=scrapMobileVidLink(m)
+				if err!=nil{
+					log.Println(err)
+				}
+				err = sendVidAttachment(r,videoLink)
+				if err!=nil{
+					log.Println(err)
+				}
+			}
+		}else{
+			videoLink,err:=scrapMobileVidLink(m)
+				if err!=nil{
+					log.Println(err)
+				}
+			err= sendVidAttachment(r,videoLink)
+			if err!=nil{
+				log.Println(err)
+			}		
+		}
+	}else{
+		r.Text(`Plz share the requested video with "send as message","send in messenger" or provide the video url`, messenger.ResponseType)
 	}
+}
+func updateUserRecord(m messenger.Message) (user,error){
+	user:=user{}
+	ctx, _ = context.WithTimeout(context.Background(), 5*time.Second)
+		update := collection.FindOneAndUpdate(ctx, bson.M{"user_id": m.Sender.ID}, bson.M{"$push": bson.M{"history": bson.M{"time": m.Time, "required_url": m.Attachments[len(m.Attachments)-1].URL}}})
+		if update.Err() != nil {
+			return nil,errors.Wrap(update.Err(),"error updating database")
+		}
+		if update.Decode(&user) != nil {
+			res, err := collection.InsertOne(ctx, bson.M{"user_id": m.Sender.ID, "history": bson.A{bson.M{"time": m.Time, "required_url": m.Attachments[len(m.Attachments)-1].URL}}})
+			if err != nil {
+				return nil,errors.Wrap(err,"error inserting document")
+			}
+			_ = res
+		}
+		dbUser := collection.FindOne(ctx, bson.M{"user_id": m.Sender.ID})
+		err = dbUser.Decode(&user)
+		if err != nil {
+			return nil , errors.Wrap(err,"error decoding : ")
+		}
+		return user,nil
+}
+func scrapMobileVidLink(m messenger.Message)(string,error){
+	var vidLink string
+	c.OnHTML("._53mw", func(e *colly.HTMLElement) {
+		value, err := fastjson.Parse(e.Attr("data-store"))
+		if err != nil {
+			return "" , errors.Wrap(err,"error scraping (mobile method)")
+		}
+		videoLink =strings.Replace(strings.Replace(value.Get("src").String(), "\\", "", -1), "\"", "", -1))
+		})
+	c.Visit(strings.Replace(strings.TrimSpace(m.Text),"www","m",-1))
+	return vidLink,nil
+	}
+func scrapHead(m messenger)(string,error){
+	var vidLink string
+	c.OnHTML("head > meta", func(e *colly.HTMLElement) {
+		if e.Attr("property") == "og:video" {
+			videoLink = e.Attr("content")
+		}
+	})
+	err = c.Visit(m.Attachments[len(m.Attachments)-1].URL)
+	if err != nil {
+		return nil,errors.Wrap(err,"error scrapping video link : ")
+	}
+	return vidLink,nil
+}	
+func sendVidAttachment(r *messenger.Response,videoLink string)(error){
+	if videoLink!=""{
+		err = r.Attachment(messenger.VideoAttachment, videoLink, messenger.ResponseType)
+		if err != nil {
+			return errors.Wrap(err,"error sending attachment")
+		}
+	}else{
+		r.Text("You might have sent an attachment that doesn't point to a video :'(",messenger.ResponseType)
+	}
+	return nil
 }
