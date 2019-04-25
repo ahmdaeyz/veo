@@ -184,10 +184,7 @@ func updateUserRecord(m messenger.Message) (*user, error) {
 func scrapMobileVidLink(m messenger.Message) (string, error) {
 	var vidLink string
 	c.OnHTML("._53mw", func(e *colly.HTMLElement) {
-		value, err := fastjson.Parse(e.Attr("data-store"))
-		if err != nil {
-			return "", errors.Wrap(err, "error scraping (mobile method)")
-		}
+		value, _ := fastjson.Parse(e.Attr("data-store"))
 		vidLink = strings.Replace(strings.Replace(value.Get("src").String(), "\\", "", -1), "\"", "", -1)
 	})
 	c.Visit(strings.Replace(strings.TrimSpace(m.Text), "www", "m", -1))
