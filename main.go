@@ -37,8 +37,6 @@ var (
 	pageToken   = conf.String("page-token", "page token", "The token that is used to verify the page on facebook")
 	mongoURI    = conf.String("mongo-uri", "mongodb uri", "MongoDB URI")
 	client      *messenger.Messenger
-	db          *mongo.Client
-	collection  *mongo.Collection
 	c           *colly.Collector
 )
 
@@ -58,12 +56,6 @@ func init() {
 	c = colly.NewCollector(
 		colly.UserAgent("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.109 Safari/537.36"),
 	)
-	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
-	db, err = mongo.Connect(ctx, options.Client().ApplyURI(*mongoURI))
-	if err != nil {
-		log.Fatal(err)
-	}
-	collection = db.Database("veo").Collection("users")
 }
 
 func main() {
@@ -86,6 +78,12 @@ func messages(m messenger.Message, r *messenger.Response) {
 	if len(m.Attachments) != 0 {
 		user := &user{}
 		ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+		db, err := mongo.Connect(ctx, options.Client().ApplyURI(*mongoURI))
+		if err != nil {
+			log.Fatal(err)
+		}
+		collection := db.Database("veo").Collection("users")
+		ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
 		update := collection.FindOneAndUpdate(ctx, bson.M{"user_id": m.Sender.ID}, bson.M{"$push": bson.M{"history": bson.M{"time": m.Time, "required_url": m.Attachments[len(m.Attachments)-1].URL}}})
 		if update.Err() != nil {
 			log.Println("error updating database", update.Err())
@@ -98,7 +96,7 @@ func messages(m messenger.Message, r *messenger.Response) {
 			_ = res
 		}
 		dbUser := collection.FindOne(ctx, bson.M{"user_id": m.Sender.ID})
-		err := dbUser.Decode(&user)
+		err = dbUser.Decode(&user)
 		if err != nil {
 			log.Println("error decoding", err)
 		}
@@ -139,6 +137,11 @@ func messages(m messenger.Message, r *messenger.Response) {
 	} else if strings.Contains(m.Text, "watch") || strings.Contains(m.Text, "videos") {
 		user := &user{}
 		ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+		db, err := mongo.Connect(ctx, options.Client().ApplyURI(*mongoURI))
+		if err != nil {
+			log.Fatal(err)
+		}
+		collection := db.Database("veo").Collection("users")
 		update := collection.FindOneAndUpdate(ctx, bson.M{"user_id": m.Sender.ID}, bson.M{"$push": bson.M{"history": bson.M{"time": m.Time, "required_url": m.Text}}})
 		if update.Err() != nil {
 			log.Println("error updating database", update.Err())
@@ -151,7 +154,7 @@ func messages(m messenger.Message, r *messenger.Response) {
 			_ = res
 		}
 		dbUser := collection.FindOne(ctx, bson.M{"user_id": m.Sender.ID})
-		err := dbUser.Decode(&user)
+		err = dbUser.Decode(&user)
 		if err != nil {
 			log.Println("error decoding", err)
 		}
