@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/ahmdaeyz/messenger"
@@ -48,6 +49,15 @@ func init() {
 	conf.Use(configure.NewFlag())
 	conf.Use(configure.NewEnvironment())
 	conf.Use(configure.NewJSONFromFile("./config.json"))
+	c := colly.NewCollector(
+		colly.UserAgent("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.109 Safari/537.36"),
+	)
+	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+	db, err := mongo.Connect(ctx, options.Client().ApplyURI(*mongoURI))
+	if err != nil {
+		log.Fatal(err)
+	}
+	collection := db.Database("veo").Collection("users")
 }
 
 func main() {
@@ -70,15 +80,6 @@ func messages(m messenger.Message, r *messenger.Response) {
 	if len(m.Attachments) != 0 {
 		user := user{}
 		var videoLink string
-		c := colly.NewCollector(
-			colly.UserAgent("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.109 Safari/537.36"),
-		)
-		ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
-		db, err := mongo.Connect(ctx, options.Client().ApplyURI(*mongoURI))
-		if err != nil {
-			log.Fatal(err)
-		}
-		collection := db.Database("veo").Collection("users")
 		ctx, _ = context.WithTimeout(context.Background(), 5*time.Second)
 		update := collection.FindOneAndUpdate(ctx, bson.M{"user_id": m.Sender.ID}, bson.M{"$push": bson.M{"history": bson.M{"time": m.Time, "required_url": m.Attachments[len(m.Attachments)-1].URL}}})
 		if update.Err() != nil {
@@ -139,7 +140,7 @@ func messages(m messenger.Message, r *messenger.Response) {
 				log.Fatal("error sending attachment : ", err)
 			}
 		}
-	} else {
+	} else if strings.Contains(m.Text, "watch") || strings.Contains(m.Text, "videos") {
 		r.Text(`Plz share the requested video with "send as message" or "send in messenger"`, messenger.ResponseType)
 	}
 }
