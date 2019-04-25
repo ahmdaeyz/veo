@@ -175,7 +175,7 @@ func updateUserRecord(m messenger.Message) (*user, error) {
 		_ = res
 	}
 	dbUser := collection.FindOne(ctx, bson.M{"user_id": m.Sender.ID})
-	err = dbUser.Decode(&user)
+	err := dbUser.Decode(&user)
 	if err != nil {
 		return nil, errors.Wrap(err, "error decoding : ")
 	}
@@ -188,7 +188,7 @@ func scrapMobileVidLink(m messenger.Message) (string, error) {
 		if err != nil {
 			return "", errors.Wrap(err, "error scraping (mobile method)")
 		}
-		videoLink = strings.Replace(strings.Replace(value.Get("src").String(), "\\", "", -1), "\"", "", -1)
+		vidLink = strings.Replace(strings.Replace(value.Get("src").String(), "\\", "", -1), "\"", "", -1)
 	})
 	c.Visit(strings.Replace(strings.TrimSpace(m.Text), "www", "m", -1))
 	return vidLink, nil
@@ -197,18 +197,18 @@ func scrapHead(m messenger.Message) (string, error) {
 	var vidLink string
 	c.OnHTML("head > meta", func(e *colly.HTMLElement) {
 		if e.Attr("property") == "og:video" {
-			videoLink = e.Attr("content")
+			vidLink = e.Attr("content")
 		}
 	})
-	err = c.Visit(m.Attachments[len(m.Attachments)-1].URL)
+	err := c.Visit(m.Attachments[len(m.Attachments)-1].URL)
 	if err != nil {
-		return nil, errors.Wrap(err, "error scrapping video link : ")
+		return "", errors.Wrap(err, "error scrapping video link : ")
 	}
 	return vidLink, nil
 }
 func sendVidAttachment(r *messenger.Response, videoLink string) error {
 	if videoLink != "" {
-		err = r.Attachment(messenger.VideoAttachment, videoLink, messenger.ResponseType)
+		err := r.Attachment(messenger.VideoAttachment, videoLink, messenger.ResponseType)
 		if err != nil {
 			return errors.Wrap(err, "error sending attachment")
 		}
