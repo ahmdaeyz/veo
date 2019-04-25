@@ -37,6 +37,9 @@ var (
 	pageToken   = conf.String("page-token", "page token", "The token that is used to verify the page on facebook")
 	mongoURI    = conf.String("mongo-uri", "mongodb uri", "MongoDB URI")
 	client      *messenger.Messenger
+	collection  *mongo.Collection
+	ctx         context.Context
+	c           *colly.Collector
 )
 
 func determineListenAddress() (string, error) {
@@ -51,11 +54,10 @@ func init() {
 	conf.Use(configure.NewFlag())
 	conf.Use(configure.NewEnvironment())
 	conf.Use(configure.NewJSONFromFile("./config.json"))
-	var collection *mongo.Collection
-	c := colly.NewCollector(
+	c = colly.NewCollector(
 		colly.UserAgent("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.109 Safari/537.36"),
 	)
-	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, _ = context.WithTimeout(context.Background(), 10*time.Second)
 	db, err := mongo.Connect(ctx, options.Client().ApplyURI(*mongoURI))
 	if err != nil {
 		log.Fatal(err)
