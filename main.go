@@ -130,7 +130,7 @@ func messages(m messenger.Message, r *messenger.Response) {
 				log.Println(err)
 			}
 		}
-	} else if strings.Contains(m.Text, "watch") || strings.Contains(m.Text, "videos") {
+	} else if strings.Contains(m.Text, "watch") || strings.Contains(m.Text, "videos") || strings.Contains(m.Text, "posts") {
 		user := &user{}
 		ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
 		db, err := mongo.Connect(ctx, options.Client().ApplyURI(*mongoURI))
