@@ -238,7 +238,10 @@ func sendVidAttachment(r *messenger.Response, videoLink string) error {
 			}
 		}
 	} else {
-		return errors.New("empty video url")
+		err := r.Text("Please Ensure Sent Link Is Valid", messenger.ResponseType)
+		if err != nil {
+			return errors.Wrap(err, "error sending attachment")
+		}
 	}
 	return nil
 }
