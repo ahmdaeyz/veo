@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -215,10 +216,28 @@ func scrapHead(m messenger.Message) (string, error) {
 }
 func sendVidAttachment(r *messenger.Response, videoLink string) error {
 	if videoLink != "" {
-		err := r.Attachment(messenger.VideoAttachment, videoLink, messenger.ResponseType)
-		if err != nil {
-			return errors.Wrap(err, "error sending attachment")
+		client := http.Client{
+			Timeout: 10 * time.Second,
 		}
+		res, err := client.Head(videoLink)
+		videoLength, _ := strconv.Atoi(res.Header.Get("Content-Length"))
+		if err != nil {
+			return err
+		}
+
+		if videoLength <= 25000000 {
+			err = r.Attachment(messenger.VideoAttachment, videoLink, messenger.ResponseType)
+			if err != nil {
+				return errors.Wrap(err, "error sending attachment")
+			}
+		} else {
+			err = r.Text("Requested Video Exceeds The Maximum Size Allowed By The Messenger Platform 😔", messenger.ResponseType)
+			if err != nil {
+				return errors.Wrap(err, "error sending attachment")
+			}
+		}
+	} else {
+		return errors.New("empty video url")
 	}
 	return nil
 }
