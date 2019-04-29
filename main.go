@@ -229,12 +229,28 @@ func sendVidAttachment(r *messenger.Response, videoLink string) error {
 		if videoLength <= 25000000 {
 			err = r.Attachment(messenger.VideoAttachment, videoLink, messenger.ResponseType)
 			if err != nil {
+				err = r.Text("Couldn't send the video But here is the download link 😉", messenger.ResponseType)
+				if err != nil {
+					return errors.Wrap(err, "error sending wink text")
+				}
+				err = r.Text(videoLink, messenger.ResponseType)
+				if err != nil {
+					return errors.Wrap(err, "error sending video link")
+				}
 				return errors.Wrap(err, "error sending attachment")
 			}
 		} else {
 			err = r.Text("Requested Video Exceeds The Maximum Size Allowed By The Messenger Platform 😔", messenger.ResponseType)
 			if err != nil {
-				return errors.Wrap(err, "error sending attachment")
+				return errors.Wrap(err, "error sending exceed text")
+			}
+			err = r.Text("But here is the download link 😉", messenger.ResponseType)
+			if err != nil {
+				return errors.Wrap(err, "error sending wink text")
+			}
+			err = r.Text(videoLink, messenger.ResponseType)
+			if err != nil {
+				return errors.Wrap(err, "error sending video link")
 			}
 		}
 	} else {
