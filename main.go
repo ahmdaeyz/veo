@@ -206,7 +206,7 @@ func messages(m messenger.Message, r *messenger.Response) {
 			r.Text("Please send a link that has a video.", messenger.ResponseType)
 		}
 	} else {
-		r.Text(`Please share the requested video with "send as message","send in messenger" or provide the video url`, messenger.ResponseType)
+		r.Text(`Please share the requested video with "send as message","send in messenger" or provide the video url if so check if the sent url is valid`, messenger.ResponseType)
 	}
 }
 
