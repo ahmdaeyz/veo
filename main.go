@@ -142,7 +142,7 @@ func messages(m messenger.Message, r *messenger.Response) {
 			r.Text("Please Share a Post that contains a video :)", messenger.ResponseType)
 		}
 	} else if strings.Contains(m.Text, "https://www.facebook.com") {
-		isVideo, err := isVideo(m.Attachments[0].URL)
+		isVideo, err := isVideo(strings.TrimSpace(m.Text))
 		if err != nil {
 			r.Text("Smth went wrong,Kindly try again", messenger.ResponseType)
 		}
