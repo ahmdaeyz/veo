@@ -68,7 +68,7 @@ func main() {
 		Token:       *pageToken,
 	})
 	client.HandleMessage(messages)
-
+	client.se
 	fmt.Println("Serving messenger bot on localhost:8080")
 	listeningAt, err := determineListenAddress()
 	if err != nil {
@@ -271,12 +271,6 @@ func sendVidAttachment(r *messenger.Response, videoLink string) error {
 			}
 		}
 	}
-	// else {
-	// 	err := r.Text("Please Ensure Sent Link Is Valid", messenger.ResponseType)
-	// 	if err != nil {
-	// 		return errors.Wrap(err, "error sending attachment")
-	// 	}
-	// }
 	return nil
 }
 func isVideo(URL string) (bool, error) {
