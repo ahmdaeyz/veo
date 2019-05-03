@@ -1,6 +1,0 @@
-{
-    "verify-token": "COOL",
-    "should-verify": false,
-    "page-token": "EAAf3bZA6q9MQBAMpfh5NIRFr01ZBgKeRGsXMvD5cskq3VnFc9ZCzqjXqcgT9SvUZAZCDqrhZBLAn3Qqkgjgln7NYKc51LQoW1xJwMvLu7x2EAOMeEYHW7yzj8QYHaUW0pe0UjLnTw38tZCZCsbkiPT7ZCJ3FZAzf6CmXm0ZAam1ZBtABYQZDZD",
-    "mongo-uri": "mongodb+srv://ahmdaeyz:ahmdaeyz1234@veo-gtjpu.mongodb.net/test?retryWrites=true"
-}
