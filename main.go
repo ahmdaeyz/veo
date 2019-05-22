@@ -218,7 +218,7 @@ func messages(m messenger.Message, r *messenger.Response) {
 			_ = r.Text("Please send a link that has a video.", messenger.ResponseType)
 		}
 	case strings.Contains(strings.ToLower(m.Text),"good bot"):
-		_ = r.Text("3>", messenger.ResponseType)
+		_ = r.Text("❤️", messenger.ResponseType)
 	default:
 		_ = r.Text(`Please share the requested video with "send as message","send in messenger" or provide the video url if so check if the sent url is valid`, messenger.ResponseType)
 	}
@@ -278,17 +278,21 @@ func sendVidAttachment(r *messenger.Response, videoLink string) error {
 				return errors.Wrap(err, "error sending attachment")
 			}
 		} else {
-			err = r.Text("Requested Video Exceeds The Maximum Size Allowed By The Messenger Platform 😔", messenger.ResponseType)
-			if err != nil {
-				return errors.Wrap(err, "error sending exceed text")
-			}
-			err = r.Text("But here is the download link 😉", messenger.ResponseType)
-			if err != nil {
-				return errors.Wrap(err, "error sending wink text")
-			}
-			err = r.Text(videoLink, messenger.ResponseType)
-			if err != nil {
-				return errors.Wrap(err, "error sending video link")
+			//err = r.Text("Requested Video Exceeds The Maximum Size Allowed By The Messenger Platform 😔", messenger.ResponseType)
+			//if err != nil {
+			//	return errors.Wrap(err, "error sending exceed text")
+			//}
+			//err = r.Text("But here is the download link 😉", messenger.ResponseType)
+			//if err != nil {
+			//	return errors.Wrap(err, "error sending wink text")
+			//}
+			//err = r.Text(videoLink, messenger.ResponseType)
+			//if err != nil {
+			//	return errors.Wrap(err, "error sending video link")
+			//}
+			errB := r.ButtonTemplate("Download",&[]messenger.StructuredMessageButton{{Type:"web_url",URL:videoLink,Title:"Download",WebviewHeightRatio:"compact"}},messenger.ResponseType)
+			if errB!=nil{
+				return errors.Wrap(err, "error sending button")
 			}
 		}
 	}else{
