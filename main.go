@@ -22,7 +22,6 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-// a messenger bot to download videos from facebook :D
 type record struct {
 	Time        time.Time
 	RequiredURL string
@@ -74,19 +73,23 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	http.ListenAndServe(listeningAt, client.Handler())
+	log.Fatal(http.ListenAndServe(listeningAt, client.Handler()))
+
 }
 func messages(m messenger.Message, r *messenger.Response) {
-	if len(m.Attachments) != 0 {
+	switch{
+	case len(m.Attachments) != 0 :
 		isVideo, err := isVideo(m.Attachments[0].URL)
 		if err != nil {
-			r.Text("Smth went wrong,Kindly try again", messenger.ResponseType)
+			_ = r.Text("Smth went wrong,Kindly try again", messenger.ResponseType)
+			log.Fatal(err)
 		}
 		if isVideo {
 			user := &user{}
 			ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
 			db, err := mongo.Connect(ctx, options.Client().ApplyURI(*mongoURI))
 			if err != nil {
+				_ = r.Text("Smth went wrong,Kindly try again", messenger.ResponseType)
 				log.Fatal(err)
 			}
 			collection := db.Database("veo").Collection("users")
@@ -110,7 +113,7 @@ func messages(m messenger.Message, r *messenger.Response) {
 				if cmp.Equal(user.History[len(user.History)-1], user.History[len(user.History)-2]) {
 					err = r.SenderAction("mark_seen")
 					if err != nil {
-						log.Fatal("error sending sender action : ", err)
+						log.Println("error sending sender action : ", err)
 					}
 					if len(user.History) >= 3 {
 						dropFirstEntry := collection.FindOneAndUpdate(ctx, bson.M{"user_id": m.Sender.ID}, bson.M{"$pop": bson.M{"history": -1}})
@@ -121,36 +124,42 @@ func messages(m messenger.Message, r *messenger.Response) {
 				} else {
 					videoLink, err := scrapHead(m)
 					if err != nil {
-						log.Println(err)
+						_ = r.Text("Smth went wrong,Kindly try again", messenger.ResponseType)
+						log.Fatal(err)
 					}
 					err = sendVidAttachment(r, videoLink)
 					if err != nil {
-						log.Println(err)
+						_ = r.Text("Smth went wrong,Kindly try again", messenger.ResponseType)
+						log.Fatal(err)
 					}
 				}
 			} else {
 				videoLink, err := scrapHead(m)
 				if err != nil {
-					log.Println(err)
+					_ = r.Text("Smth went wrong,Kindly try again", messenger.ResponseType)
+					log.Fatal(err)
 				}
 				err = sendVidAttachment(r, videoLink)
 				if err != nil {
-					log.Println(err)
+					_ = r.Text("Smth went wrong,Kindly try again", messenger.ResponseType)
+					log.Fatal(err)
 				}
 			}
 		} else {
-			r.Text("Please Share a Post that contains a video :)", messenger.ResponseType)
+			_ = r.Text("Please Share a Post that contains a video :)", messenger.ResponseType)
 		}
-	} else if strings.Contains(m.Text, "https://www.facebook.com") {
+	 case strings.Contains(m.Text, "https://www.facebook.com") :
 		isVideo, err := isVideo(strings.TrimSpace(m.Text))
 		if err != nil {
-			r.Text("Smth went wrong,Kindly try again", messenger.ResponseType)
+			_ = r.Text("Smth went wrong,Kindly try again", messenger.ResponseType)
+			log.Fatal(err)
 		}
-		if isVideo {
+		if isVideo || strings.Contains(m.Text,"comment_id") {
 			user := &user{}
 			ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
 			db, err := mongo.Connect(ctx, options.Client().ApplyURI(*mongoURI))
 			if err != nil {
+				_ = r.Text("Smth went wrong,Kindly try again", messenger.ResponseType)
 				log.Fatal(err)
 			}
 			collection := db.Database("veo").Collection("users")
@@ -185,28 +194,33 @@ func messages(m messenger.Message, r *messenger.Response) {
 				} else {
 					videoLink, err := scrapMobileVidLink(m)
 					if err != nil {
-						log.Println(err)
+						_ = r.Text("Smth went wrong,Kindly try again", messenger.ResponseType)
+						log.Fatal(err)
 					}
 					err = sendVidAttachment(r, videoLink)
 					if err != nil {
-						log.Println(err)
-					}
+						_ = r.Text("Smth went wrong,Kindly try again", messenger.ResponseType)
+						log.Fatal(err)					}
 				}
 			} else {
 				videoLink, err := scrapMobileVidLink(m)
 				if err != nil {
-					log.Println(err)
+					_ = r.Text("Smth went wrong,Kindly try again", messenger.ResponseType)
+					log.Fatal(err)
 				}
 				err = sendVidAttachment(r, videoLink)
 				if err != nil {
-					log.Println(err)
+					_ = r.Text("Smth went wrong,Kindly try again", messenger.ResponseType)
+					log.Fatal(err)
 				}
 			}
 		} else {
-			r.Text("Please send a link that has a video.", messenger.ResponseType)
+			_ = r.Text("Please send a link that has a video.", messenger.ResponseType)
 		}
-	} else {
-		r.Text(`Please share the requested video with "send as message","send in messenger" or provide the video url if so check if the sent url is valid`, messenger.ResponseType)
+	case strings.Contains(strings.ToLower(m.Text),"good bot"):
+		_ = r.Text("3>", messenger.ResponseType)
+	default:
+		_ = r.Text(`Please share the requested video with "send as message","send in messenger" or provide the video url if so check if the sent url is valid`, messenger.ResponseType)
 	}
 }
 
@@ -216,7 +230,10 @@ func scrapMobileVidLink(m messenger.Message) (string, error) {
 		value, _ := fastjson.Parse(e.Attr("data-store"))
 		vidLink = strings.Replace(strings.Replace(value.Get("src").String(), "\\", "", -1), "\"", "", -1)
 	})
-	c.Visit(strings.Replace(strings.TrimSpace(m.Text), "www", "m", -1))
+	err :=c.Visit(strings.Replace(strings.TrimSpace(m.Text), "www", "m", -1))
+	if err!=nil{
+		return "", errors.Wrap(err,"error scraping mobile video link")
+	}
 	return vidLink, nil
 }
 func scrapHead(m messenger.Message) (string, error) {
@@ -246,13 +263,17 @@ func sendVidAttachment(r *messenger.Response, videoLink string) error {
 		if videoLength <= 25000000 {
 			err = r.Attachment(messenger.VideoAttachment, videoLink, messenger.ResponseType)
 			if err != nil {
-				err = r.Text("Couldn't send the video But here is the download link 😉", messenger.ResponseType)
-				if err != nil {
-					return errors.Wrap(err, "error sending wink text")
-				}
-				err = r.Text(videoLink, messenger.ResponseType)
-				if err != nil {
-					return errors.Wrap(err, "error sending video link")
+				//err = r.Text("Couldn't send the video But here is the download link 😉", messenger.ResponseType)
+				//if err != nil {
+				//	return errors.Wrap(err, "error sending wink text")
+				//}
+				//err = r.Text(videoLink, messenger.ResponseType)
+				//if err != nil {
+				//	return errors.Wrap(err, "error sending video link")
+				//}
+				errB := r.ButtonTemplate("Download",&[]messenger.StructuredMessageButton{{Type:"web_url",URL:videoLink,Title:"Download",WebviewHeightRatio:"compact"}},messenger.ResponseType)
+				if errB!=nil{
+					return errors.Wrap(err, "error sending button")
 				}
 				return errors.Wrap(err, "error sending attachment")
 			}
@@ -270,13 +291,9 @@ func sendVidAttachment(r *messenger.Response, videoLink string) error {
 				return errors.Wrap(err, "error sending video link")
 			}
 		}
+	}else{
+		_ = r.Text(`Please share the requested video with "send as message","send in messenger" or provide the video url if so check if the sent url is valid`, messenger.ResponseType)
 	}
-	// else {
-	// 	err := r.Text("Please Ensure Sent Link Is Valid", messenger.ResponseType)
-	// 	if err != nil {
-	// 		return errors.Wrap(err, "error sending attachment")
-	// 	}
-	// }
 	return nil
 }
 func isVideo(URL string) (bool, error) {
