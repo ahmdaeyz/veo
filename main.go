@@ -271,11 +271,11 @@ func sendVidAttachment(r *messenger.Response, videoLink string) error {
 				//if err != nil {
 				//	return errors.Wrap(err, "error sending video link")
 				//}
-				errB := r.ButtonTemplate("Download",&[]messenger.StructuredMessageButton{{Type:"web_url",URL:videoLink,Title:"Download",WebviewHeightRatio:"compact"}},messenger.ResponseType)
+				errB := r.ButtonTemplate("",&[]messenger.StructuredMessageButton{{Type:"web_url",URL:videoLink,Title:"Download",WebviewHeightRatio:"full"}},messenger.ResponseType)
 				if errB!=nil{
 					return errors.Wrap(err, "error sending button")
 				}
-				return errors.Wrap(err, "error sending attachment")
+				log.Fatal(errors.Wrap(err, "error sending attachment"))
 			}
 		} else {
 			//err = r.Text("Requested Video Exceeds The Maximum Size Allowed By The Messenger Platform 😔", messenger.ResponseType)
@@ -290,9 +290,9 @@ func sendVidAttachment(r *messenger.Response, videoLink string) error {
 			//if err != nil {
 			//	return errors.Wrap(err, "error sending video link")
 			//}
-			errB := r.ButtonTemplate("Download",&[]messenger.StructuredMessageButton{{Type:"web_url",URL:videoLink,Title:"Download",WebviewHeightRatio:"compact"}},messenger.ResponseType)
+			errB := r.ButtonTemplate("",&[]messenger.StructuredMessageButton{{Type:"web_url",URL:videoLink,Title:"Download",WebviewHeightRatio:"full"}},messenger.ResponseType)
 			if errB!=nil{
-				return errors.Wrap(err, "error sending button")
+				log.Fatal(errors.Wrap(err, "error sending button"))
 			}
 		}
 	}else{
