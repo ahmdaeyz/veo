@@ -67,7 +67,15 @@ func main() {
 		Token:       *pageToken,
 	})
 	client.HandleMessage(messages)
-
+	err:= client.GreetingSetting(`Welcome to Veo!
+You can use me as follows :
+- Send me the public Facebook video link.
+- If you are in desktop, Click "Share" => "Send as Message" and search for me.
+- if you are on mobile, Tap "Share" => "Send in Messenger" and search for me.
+If you faced any issues please ask me at ask.fm @ahmdaeyz or tweet me @ahmdaeyz.`)
+	if err!=nil{
+		log.Println("Couldn't greet user", err)
+	}
 	fmt.Println("Serving messenger bot on localhost:8080")
 	listeningAt, err := determineListenAddress()
 	if err != nil {
@@ -78,47 +86,63 @@ func main() {
 }
 func messages(m messenger.Message, r *messenger.Response) {
 	switch{
-	case len(m.Attachments) != 0 :
-		isVideo, err := isVideo(m.Attachments[0].URL)
-		if err != nil {
-			_ = r.Text("Smth went wrong,Kindly try again", messenger.ResponseType)
-			log.Fatal(err)
-		}
-		if isVideo {
-			user := &user{}
-			ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
-			db, err := mongo.Connect(ctx, options.Client().ApplyURI(*mongoURI))
+		case len(m.Attachments) != 0 :
+			isVideo, err := isVideo(m.Attachments[0].URL)
 			if err != nil {
 				_ = r.Text("Smth went wrong,Kindly try again", messenger.ResponseType)
 				log.Fatal(err)
 			}
-			collection := db.Database("veo").Collection("users")
-			update := collection.FindOneAndUpdate(ctx, bson.M{"user_id": m.Sender.ID}, bson.M{"$push": bson.M{"history": bson.M{"time": m.Time, "required_url": m.Attachments[len(m.Attachments)-1].URL}}})
-			if update.Err() != nil {
-				log.Println("error updating database", update.Err())
-			}
-			if update.Decode(&user) != nil {
-				res, err := collection.InsertOne(ctx, bson.M{"user_id": m.Sender.ID, "history": bson.A{bson.M{"time": m.Time, "required_url": m.Attachments[len(m.Attachments)-1].URL}}})
+			if isVideo {
+				user := &user{}
+				ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+				db, err := mongo.Connect(ctx, options.Client().ApplyURI(*mongoURI))
 				if err != nil {
-					log.Println("error inserting document", err)
+					_ = r.Text("Smth went wrong,Kindly try again", messenger.ResponseType)
+					log.Fatal(err)
 				}
-				_ = res
-			}
-			dbUser := collection.FindOne(ctx, bson.M{"user_id": m.Sender.ID})
-			err = dbUser.Decode(&user)
-			if err != nil {
-				log.Println("error decoding", err)
-			}
-			if len(user.History) >= 2 {
-				if cmp.Equal(user.History[len(user.History)-1], user.History[len(user.History)-2]) {
-					err = r.SenderAction("mark_seen")
+				collection := db.Database("veo").Collection("users")
+				update := collection.FindOneAndUpdate(ctx, bson.M{"user_id": m.Sender.ID}, bson.M{"$push": bson.M{"history": bson.M{"time": m.Time, "required_url": m.Attachments[len(m.Attachments)-1].URL}}})
+				if update.Err() != nil {
+					log.Println("error updating database", update.Err())
+				}
+				if update.Decode(&user) != nil {
+					res, err := collection.InsertOne(ctx, bson.M{"user_id": m.Sender.ID, "history": bson.A{bson.M{"time": m.Time, "required_url": m.Attachments[len(m.Attachments)-1].URL}}})
 					if err != nil {
-						log.Println("error sending sender action : ", err)
+						log.Println("error inserting document", err)
 					}
-					if len(user.History) >= 3 {
-						dropFirstEntry := collection.FindOneAndUpdate(ctx, bson.M{"user_id": m.Sender.ID}, bson.M{"$pop": bson.M{"history": -1}})
-						if dropFirstEntry.Err() != nil {
-							log.Println("error droping first entry of user history", dropFirstEntry.Err())
+					_ = res
+				}
+				dbUser := collection.FindOne(ctx, bson.M{"user_id": m.Sender.ID})
+				err = dbUser.Decode(&user)
+				if err != nil {
+					log.Println("error decoding", err)
+				}
+				if len(user.History) >= 2 {
+					if cmp.Equal(user.History[len(user.History)-1], user.History[len(user.History)-2]) {
+						err = r.SenderAction("mark_seen")
+						if err != nil {
+							log.Println("error sending sender action : ", err)
+						}
+						err = r.SenderAction("typing_on")
+						if err != nil {
+							log.Println("error sending sender action (Typing) : ", err)
+						}
+						if len(user.History) >= 3 {
+							dropFirstEntry := collection.FindOneAndUpdate(ctx, bson.M{"user_id": m.Sender.ID}, bson.M{"$pop": bson.M{"history": -1}})
+							if dropFirstEntry.Err() != nil {
+								log.Println("error droping first entry of user history", dropFirstEntry.Err())
+							}
+						}
+					} else {
+						videoLink, err := scrapHead(m)
+						if err != nil {
+							_ = r.Text("Smth went wrong,Kindly try again", messenger.ResponseType)
+							log.Fatal(err)
+						}
+						err = sendVidAttachment(r, videoLink)
+						if err != nil {
+							_ = r.Text("Smth went wrong,Kindly try again", messenger.ResponseType)
+							log.Fatal(err)
 						}
 					}
 				} else {
@@ -134,62 +158,61 @@ func messages(m messenger.Message, r *messenger.Response) {
 					}
 				}
 			} else {
-				videoLink, err := scrapHead(m)
-				if err != nil {
-					_ = r.Text("Smth went wrong,Kindly try again", messenger.ResponseType)
-					log.Fatal(err)
-				}
-				err = sendVidAttachment(r, videoLink)
-				if err != nil {
-					_ = r.Text("Smth went wrong,Kindly try again", messenger.ResponseType)
-					log.Fatal(err)
-				}
+				_ = r.Text("Please Share a Post that contains a video :)", messenger.ResponseType)
 			}
-		} else {
-			_ = r.Text("Please Share a Post that contains a video :)", messenger.ResponseType)
-		}
-	 case strings.Contains(m.Text, "https://www.facebook.com") :
-		isVideo, err := isVideo(strings.TrimSpace(m.Text))
-		if err != nil {
-			_ = r.Text("Smth went wrong,Kindly try again", messenger.ResponseType)
-			log.Fatal(err)
-		}
-		if isVideo || strings.Contains(m.Text,"comment_id") {
-			user := &user{}
-			ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
-			db, err := mongo.Connect(ctx, options.Client().ApplyURI(*mongoURI))
+		 case strings.Contains(m.Text, "https://www.facebook.com") :
+			isVideo, err := isVideo(strings.TrimSpace(m.Text))
 			if err != nil {
 				_ = r.Text("Smth went wrong,Kindly try again", messenger.ResponseType)
 				log.Fatal(err)
 			}
-			collection := db.Database("veo").Collection("users")
-			update := collection.FindOneAndUpdate(ctx, bson.M{"user_id": m.Sender.ID}, bson.M{"$push": bson.M{"history": bson.M{"time": m.Time, "required_url": m.Text}}})
-			if update.Err() != nil {
-				log.Println("error updating database", update.Err())
-			}
-			if update.Decode(&user) != nil {
-				res, err := collection.InsertOne(ctx, bson.M{"user_id": m.Sender.ID, "history": bson.A{bson.M{"time": m.Time, "required_url": m.Text}}})
+			if isVideo || strings.Contains(m.Text,"comment_id") {
+				user := &user{}
+				ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+				db, err := mongo.Connect(ctx, options.Client().ApplyURI(*mongoURI))
 				if err != nil {
-					log.Println("error inserting document", err)
+					_ = r.Text("Smth went wrong,Kindly try again", messenger.ResponseType)
+					log.Fatal(err)
 				}
-				_ = res
-			}
-			dbUser := collection.FindOne(ctx, bson.M{"user_id": m.Sender.ID})
-			err = dbUser.Decode(&user)
-			if err != nil {
-				log.Println("error decoding", err)
-			}
-			if len(user.History) >= 2 {
-				if cmp.Equal(user.History[len(user.History)-1], user.History[len(user.History)-2]) {
-					err = r.SenderAction("mark_seen")
+				collection := db.Database("veo").Collection("users")
+				update := collection.FindOneAndUpdate(ctx, bson.M{"user_id": m.Sender.ID}, bson.M{"$push": bson.M{"history": bson.M{"time": m.Time, "required_url": m.Text}}})
+				if update.Err() != nil {
+					log.Println("error updating database", update.Err())
+				}
+				if update.Decode(&user) != nil {
+					res, err := collection.InsertOne(ctx, bson.M{"user_id": m.Sender.ID, "history": bson.A{bson.M{"time": m.Time, "required_url": m.Text}}})
 					if err != nil {
-						log.Fatal("error sending sender action : ", err)
+						log.Println("error inserting document", err)
 					}
-					if len(user.History) >= 3 {
-						dropFirstEntry := collection.FindOneAndUpdate(ctx, bson.M{"user_id": m.Sender.ID}, bson.M{"$pop": bson.M{"history": -1}})
-						if dropFirstEntry.Err() != nil {
-							log.Println("error droping first entry of user history", dropFirstEntry.Err())
+					_ = res
+				}
+				dbUser := collection.FindOne(ctx, bson.M{"user_id": m.Sender.ID})
+				err = dbUser.Decode(&user)
+				if err != nil {
+					log.Println("error decoding", err)
+				}
+				if len(user.History) >= 2 {
+					if cmp.Equal(user.History[len(user.History)-1], user.History[len(user.History)-2]) {
+						err = r.SenderAction("mark_seen")
+						if err != nil {
+							log.Fatal("error sending sender action : ", err)
 						}
+						if len(user.History) >= 3 {
+							dropFirstEntry := collection.FindOneAndUpdate(ctx, bson.M{"user_id": m.Sender.ID}, bson.M{"$pop": bson.M{"history": -1}})
+							if dropFirstEntry.Err() != nil {
+								log.Println("error droping first entry of user history", dropFirstEntry.Err())
+							}
+						}
+					} else {
+						videoLink, err := scrapMobileVidLink(m)
+						if err != nil {
+							_ = r.Text("Smth went wrong,Kindly try again", messenger.ResponseType)
+							log.Fatal(err)
+						}
+						err = sendVidAttachment(r, videoLink)
+						if err != nil {
+							_ = r.Text("Smth went wrong,Kindly try again", messenger.ResponseType)
+							log.Fatal(err)					}
 					}
 				} else {
 					videoLink, err := scrapMobileVidLink(m)
@@ -200,27 +223,16 @@ func messages(m messenger.Message, r *messenger.Response) {
 					err = sendVidAttachment(r, videoLink)
 					if err != nil {
 						_ = r.Text("Smth went wrong,Kindly try again", messenger.ResponseType)
-						log.Fatal(err)					}
+						log.Fatal(err)
+					}
 				}
 			} else {
-				videoLink, err := scrapMobileVidLink(m)
-				if err != nil {
-					_ = r.Text("Smth went wrong,Kindly try again", messenger.ResponseType)
-					log.Fatal(err)
-				}
-				err = sendVidAttachment(r, videoLink)
-				if err != nil {
-					_ = r.Text("Smth went wrong,Kindly try again", messenger.ResponseType)
-					log.Fatal(err)
-				}
+				_ = r.Text("Please send a link that has a video.", messenger.ResponseType)
 			}
-		} else {
-			_ = r.Text("Please send a link that has a video.", messenger.ResponseType)
-		}
-	case strings.Contains(strings.ToLower(m.Text),"good bot"):
-		_ = r.Text("❤️", messenger.ResponseType)
-	default:
-		_ = r.Text(`Please share the requested video with "send as message","send in messenger" or provide the video url if so check if the sent url is valid`, messenger.ResponseType)
+		case strings.Contains(strings.ToLower(m.Text),"good bot"):
+			_ = r.Text("❤️", messenger.ResponseType)
+		default:
+			_ = r.Text(`Please share the requested video with "send as message","send in messenger" or provide the video url if so check if the sent url is valid`, messenger.ResponseType)
 	}
 }
 
