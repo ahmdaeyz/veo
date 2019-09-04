@@ -76,11 +76,11 @@ If you faced any issues please ask me at ask.fm @ahmdaeyz or tweet me @ahmdaeyz.
 		log.Println("Couldn't greet user", err)
 	}
 	fmt.Println("Serving messenger bot on localhost:8080")
-	// listeningAt, err := determineListenAddress()
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	log.Fatal(http.ListenAndServe(":8080", client.Handler()))
+	listeningAt, err := determineListenAddress()
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Fatal(http.ListenAndServe(liseningAt, client.Handler()))
 }
 func messages(m messenger.Message, r *messenger.Response) {
 	videoURL, err := deduceURL(m)
