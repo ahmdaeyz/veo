@@ -80,7 +80,7 @@ If you faced any issues please ask me at ask.fm @ahmdaeyz or tweet me @ahmdaeyz.
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Fatal(http.ListenAndServe(liseningAt, client.Handler()))
+	log.Fatal(http.ListenAndServe(listeningAt, client.Handler()))
 }
 func messages(m messenger.Message, r *messenger.Response) {
 	videoURL, err := deduceURL(m)
@@ -260,5 +260,5 @@ func deduceURL(m messenger.Message) (string, error) {
 //validFacebookURL Checks if a URL is a valid Facebook URL
 func validFacebookURL(URL string) bool {
 	u, err := url.Parse(URL)
-	return err == nil && u.Scheme != "" && strings.Contains(u.Host,"facebook.com")
+	return err == nil && u.Scheme != "" && strings.Contains(u.Host, "facebook.com")
 }
